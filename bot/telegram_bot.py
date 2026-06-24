@@ -64,7 +64,7 @@ async def send_report(data: Dict, token: str = None, chat_id: str = None) -> boo
             await bot.send_message(
                 chat_id=chat_id,
                 text=text,
-                parse_mode=ParseMode.MARKDOWN_V2,
+                parse_mode=ParseMode.HTML,
             )
             logger.info("✅ Pesan terkirim: %s", label)
         except TelegramError as e:
@@ -90,7 +90,7 @@ async def send_error_notification(message: str, token: str = None, chat_id: str 
         await bot.send_message(
             chat_id=chat_id,
             text=f"❌ {message}",
-            parse_mode=ParseMode.MARKDOWN_V2,
+            parse_mode=ParseMode.HTML,
         )
     except TelegramError as e:
         logger.error("Gagal kirim notif error: %s", e)
