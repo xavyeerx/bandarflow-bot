@@ -1,5 +1,6 @@
 """
 bot/formatter.py — Format 7 pesan Telegram (HTML parse mode).
+Fokus: broker yang akumulasi, net buy, ringkas dan informatif.
 """
 
 from datetime import date
@@ -23,40 +24,41 @@ def format_rupiah(value_rupiah: float) -> str:
     else:
         return f"{sign}{abs_val:,.0f}"
 
+def fmt_score(v: float) -> str:
+    return f"{v:.2f}"
 
-def fmt_pct(value: float) -> str:
-    return f"{value * 100:.0f}%"
+def fmt_pct(v: float) -> str:
+    return f"{v * 100:.0f}%"
 
-
-def fmt_score(value: float) -> str:
-    return f"{value:.2f}"
+def _brokers(top3: list) -> str:
+    return "  ".join(f"<b>{b}</b>" for b in top3[:3])
 
 
 # ─── Pesan 1: Header ──────────────────────────────────────────────────────────
 
 def format_header(data: Dict) -> str:
-    today         = date.today().strftime("%Y-%m-%d")
-    universe_size = data.get("universe_size", 0)
-    regime        = data.get("regime", "NEUTRAL")
-    ihsg          = data.get("ihsg_level", 0)
-    ihsg_chg      = data.get("ihsg_change_pct", 0)
-    ihsg_vol      = data.get("ihsg_volume_rupiah", 0)
-    data_status   = data.get("data_status", "FULL")
-    whale_count   = data.get("whale_count", 0)
-    wash_count    = data.get("wash_count", 0)
-    r_emoji       = regime_emoji(regime)
-    chg_sign      = "+" if ihsg_chg >= 0 else ""
+    today       = date.today().strftime("%Y-%m-%d")
+    n           = data.get("universe_size", 0)
+    regime      = data.get("regime", "NEUTRAL")
+    ihsg        = data.get("ihsg_level", 0)
+    chg         = data.get("ihsg_change_pct", 0)
+    status      = data.get("data_status", "FULL")
+    whales      = data.get("whale_count", 0)
+    wash        = data.get("wash_count", 0)
+    r_emoji     = regime_emoji(regime)
+    chg_sign    = "+" if chg >= 0 else ""
+    chg_color   = "📗" if chg >= 0 else "📕"
 
     return (
-        f"📊 <b>DAILY SCREENING REPORT</b>\n"
-        f"📅 {today} | Universe: {universe_size:,} emiten\n"
-        f"🔬 Flow + TCN + Bandarmology\n\n"
-        f"🌡 Market Regime: <b>{regime}</b> {r_emoji}\n"
-        f"IHSG: {ihsg:,.0f} ({chg_sign}{ihsg_chg:.1f}%) | "
-        f"Vol: {format_rupiah(ihsg_vol)}\n"
-        f"📦 Data: {'✅ FULL' if data_status == 'FULL' else '⚠️ DEGRADED'}\n"
-        f"🐳 Whale Signals: {whale_count} saham\n"
-        f"⚠️ Wash Trade Warning: {wash_count} saham"
+        f"📊 <b>BANDARMOLOGY SCREENING</b>\n"
+        f"📅 {today} | {n:,} emiten dianalisis\n"
+        f"{'─' * 28}\n"
+        f"{chg_color} IHSG  <b>{ihsg:,.2f}</b>  ({chg_sign}{chg:.2f}%)\n"
+        f"🌡 Regime: <b>{regime}</b> {r_emoji}\n"
+        f"{'─' * 28}\n"
+        f"🐳 Whale aktif   : {whales} saham\n"
+        f"⚠️ Wash trade    : {wash} saham\n"
+        f"📦 Data status   : {'✅ FULL' if status == 'FULL' else '⚠️ DEGRADED'}"
     )
 
 
@@ -64,37 +66,33 @@ def format_header(data: Dict) -> str:
 
 def format_top5_was(was_ranking: List[Dict]) -> str:
     lines = [
-        "🐳 <b>TOP 5 WHALE ACCUMULATION</b>",
-        "Ranked by: WAS = konsentrasi(40%) + persistence(40%) + net value(20%)",
+        "🐳 <b>WHALE ACCUMULATION</b>",
+        "<i>Broker besar diam-diam akumulasi hari ini</i>",
         "",
     ]
     for i, item in enumerate(was_ranking[:config.TOP_N], 1):
-        was     = item["was"]
-        code    = item["code"]
-        konsen  = was["konsentrasi"]
-        streak  = was["persistent_days"]
-        net     = was["net_buy_total_rupiah"]
-        brokers = " ".join(was["top3_brokers"][:3])
+        was    = item["was"]
+        code   = item["code"]
+        net    = was["net_buy_total_rupiah"]
+        streak = was["persistent_days"]
+        top3   = was["top3_brokers"][:3]
+        streak_str = f"  {streak}d berturut" if streak > 1 else ""
 
-        lines.append(
-            f"{i}. <b>{code}</b>  "
-            f"WAS:{fmt_score(was['was'])} | "
-            f"Konsen:{fmt_pct(konsen)} | "
-            f"Streak:{streak}d | "
-            f"Net:{format_rupiah(net)} | "
-            f"Bkr:{brokers}"
-        )
+        lines.append(f"{i}. <b>{code}</b>  {format_rupiah(net)}{streak_str}")
+        lines.append(f"   Broker: {_brokers(top3)}")
+        lines.append("")
+
     if not was_ranking:
         lines.append("<i>(tidak ada sinyal whale hari ini)</i>")
-    return "\n".join(lines)
+    return "\n".join(lines).rstrip()
 
 
 # ─── Pesan 3: Top 5 FS ────────────────────────────────────────────────────────
 
 def format_top5_fs(fs_ranking: List[Dict]) -> str:
     lines = [
-        "💧 <b>TOP 5 FLOW SCORE</b>",
-        "Ranked by: FS = sigmoid(net_buy_today / avg_10d) + foreign booster",
+        "💧 <b>MONEY FLOW</b>",
+        "<i>Net buy broksum terbesar hari ini</i>",
         "",
     ]
     for i, item in enumerate(fs_ranking[:config.TOP_N], 1):
@@ -102,78 +100,78 @@ def format_top5_fs(fs_ranking: List[Dict]) -> str:
         fs   = item["fs"]
         net  = fs["net_buy_today"]
         anom = fs["anomali"]
-        fgn  = "NET BUY ⬆️" if fs["foreign_booster_active"] else "NEUTRAL"
+        fgn  = "  🌏 Asing masuk" if fs["foreign_booster_active"] else ""
+        was  = item.get("was", {})
+        top3 = was.get("top3_brokers", [])[:3]
 
-        lines.append(
-            f"{i}. <b>{code}</b>  "
-            f"FS:{fmt_score(fs['fs'])} | "
-            f"Net:{format_rupiah(net)} | "
-            f"Anomali:{anom:+.1f}x | "
-            f"Foreign:{fgn}"
-        )
+        lines.append(f"{i}. <b>{code}</b>  {format_rupiah(net)}  ({anom:+.1f}x){fgn}")
+        if top3:
+            lines.append(f"   Broker: {_brokers(top3)}")
+        lines.append("")
+
     if not fs_ranking:
         lines.append("<i>(tidak ada sinyal flow hari ini)</i>")
-    return "\n".join(lines)
+    return "\n".join(lines).rstrip()
 
 
 # ─── Pesan 4: Top 5 TCN ───────────────────────────────────────────────────────
 
 def format_top5_tcn(tcn_ranking: List[Dict]) -> str:
     lines = [
-        "📈 <b>TOP 5 TECHNICAL CONFLUENCE</b>",
-        "Ranked by: TCN = jumlah sinyal bullish dari 10 indikator",
+        "📈 <b>SINYAL TEKNIKAL</b>",
+        "<i>Konfluensi indikator bullish terbanyak</i>",
         "",
     ]
     for i, item in enumerate(tcn_ranking[:config.TOP_N], 1):
         code  = item["code"]
         tcn   = item["tcn"]
         score = tcn["score"]
+        mx    = tcn["max_score"]
         sigs  = tcn["signals"]
+        close = (item.get("ohlcv") or {}).get("close", 0)
 
-        active_sigs = [f"✅{k}" for k, v in sigs.items() if v][:6]
-        sig_str     = " ".join(active_sigs)
+        active = [k for k, v in sigs.items() if v][:5]
+        sig_str = "  ".join(f"✅{s}" for s in active)
 
-        lines.append(
-            f"{i}. <b>{code}</b>  "
-            f"TCN:{fmt_score(tcn['tcn'])} | "
-            f"{score}/{tcn['max_score']} | "
-            f"{sig_str}"
-        )
+        lines.append(f"{i}. <b>{code}</b>  {score}/{mx} sinyal  Rp{close:,.0f}")
+        lines.append(f"   {sig_str}")
+        lines.append("")
+
     if not tcn_ranking:
         lines.append("<i>(tidak ada sinyal teknikal hari ini)</i>")
-    return "\n".join(lines)
+    return "\n".join(lines).rstrip()
 
 
 # ─── Pesan 5: Top 5 SAD ───────────────────────────────────────────────────────
 
 def format_top5_sad(sad_ranking: List[Dict]) -> str:
     lines = [
-        "🔍 <b>TOP 5 STEALTH ACCUMULATION</b>",
-        "Ranked by: streak terpanjang + cum net buy terbesar",
-        "Sinyal pre-breakout — harga sideways, broker diam-diam beli",
+        "🔍 <b>STEALTH ACCUMULATION</b>",
+        "<i>Harga sideways tapi broker terus akumulasi — sinyal pre-breakout</i>",
         "",
     ]
     for i, item in enumerate(sad_ranking[:config.TOP_N], 1):
         code    = item["code"]
         sad     = item["sad"]
         was     = item.get("was", {})
+        top3    = was.get("top3_brokers", [])[:3]
         streak  = was.get("persistent_days", 0)
         cum_net = sad["cum_net_buy_5d"]
-        vol_r   = sad["vol_ratio"]
         p_range = sad["price_range"] * 100
         p_days  = sad["positive_days"]
 
         lines.append(
-            f"{i}. <b>{code}</b>  "
-            f"Streak:{streak}d | "
-            f"Range:{p_range:.1f}% | "
-            f"Vol:{vol_r:.1f}x | "
-            f"CumNet:{format_rupiah(cum_net)} | "
-            f"Days:{p_days}/5"
+            f"{i}. <b>{code}</b>  {format_rupiah(cum_net)} / 5 hari"
+            f"  ({p_days}/5 hari net buy positif)"
         )
+        lines.append(f"   Broker: {_brokers(top3)}  |  Range harga: {p_range:.1f}%")
+        if streak > 1:
+            lines.append(f"   ⭐ Streak {streak} hari — kandidat breakout")
+        lines.append("")
+
     if not sad_ranking:
         lines.append("<i>(tidak ada sinyal stealth accumulation hari ini)</i>")
-    return "\n".join(lines)
+    return "\n".join(lines).rstrip()
 
 
 # ─── Pesan 6: WTF Warning ─────────────────────────────────────────────────────
@@ -181,27 +179,27 @@ def format_top5_sad(sad_ranking: List[Dict]) -> str:
 def format_wtf_warning(wash_list: List[Dict]) -> str:
     lines = [
         "⚠️ <b>WASH TRADE WARNING</b>",
-        "Saham berikut terdeteksi transaksi mencurigakan — HINDARI",
+        "<i>Saham berikut terdeteksi transaksi bolak-balik mencurigakan — HINDARI</i>",
         "",
     ]
     if not wash_list:
-        lines.append("<i>(tidak ada wash trade terdeteksi hari ini)</i> ✅")
+        lines.append("✅ <i>Tidak ada wash trade terdeteksi hari ini</i>")
     else:
         for i, item in enumerate(wash_list[:10], 1):
             code     = item["code"]
             wtf      = item["wtf"]
             risk     = wtf["wtf_risk"]
             wash_pct = int(wtf["wash_score"] * 100)
-            fs_val   = item.get("fs", {}).get("fs", 0)
+            net      = item.get("fs", {}).get("net_buy_today", 0)
+            risk_icon = "🔴" if risk == "HIGH" else "🟡"
 
             lines.append(
-                f"{i}. <b>{code}</b>  "
-                f"Wash:{wash_pct}% | "
-                f"Risk:{risk} | "
-                f"Flow:{fmt_score(fs_val)}"
+                f"{i}. {risk_icon} <b>{code}</b>  "
+                f"Wash: {wash_pct}%  |  Net: {format_rupiah(net)}"
             )
         lines.append("")
-        lines.append("⚠️ Flow tinggi + wash tinggi = jebakan pump &amp; dump")
+        lines.append("⚠️ <i>Flow tinggi + wash tinggi = potensi pump &amp; dump</i>")
+
     return "\n".join(lines)
 
 
@@ -209,56 +207,51 @@ def format_wtf_warning(wash_list: List[Dict]) -> str:
 
 def format_watchlist_cfs(cfs_ranking: List[Dict]) -> str:
     lines = [
-        "🎯 <b>WATCHLIST — TOP 5 RANKING CFS</b>",
-        "Bobot: WAS(35%) + FS(30%) + TCN(25%) + SAD(10%)",
-        "Pre-filter: wash &lt; 30% | vol &gt; 0.5B | harga &gt; 100 | net buy &gt; 0",
+        "🎯 <b>WATCHLIST HARI INI</b>",
+        "<i>Gabungan sinyal whale + flow + teknikal terkuat</i>",
         "",
         "━━━━━━━━━━━━━━━━━━━━━━━━━",
     ]
 
     if not cfs_ranking:
-        lines.append("<i>(tidak ada saham yang lolos pre-filter hari ini)</i>")
+        lines.append("<i>(tidak ada saham yang lolos filter hari ini)</i>")
     else:
         for i, item in enumerate(cfs_ranking[:config.TOP_N], 1):
-            code  = item["code"]
-            cfs   = item["cfs"]
-            was   = item["was"]
-            fs    = item["fs"]
-            tcn   = item["tcn"]
-            sad   = item["sad"]
+            code   = item["code"]
+            cfs    = item["cfs"]
+            was    = item["was"]
+            fs     = item["fs"]
+            tcn    = item["tcn"]
+            sad    = item["sad"]
+            close  = (item.get("ohlcv") or {}).get("close", 0)
 
             label      = cfs["label"]
-            cfs_val    = cfs["cfs"]
             whale_icon = "🐳" if was["is_whale"] else "📈"
-            sad_icon   = "✅" if sad["sad"] else "❌"
-            brokers    = " ".join(was["top3_brokers"][:3])
-            vol_ratio  = tcn.get("vol_ratio", 0)
+            sad_tag    = "  ⭐ Stealth" if sad["sad"] else ""
+            top3       = was["top3_brokers"][:3]
             net        = fs["net_buy_today"]
             streak     = was["persistent_days"]
+            score_tcn  = tcn["score"]
+            mx         = tcn["max_score"]
+            streak_str = f"  {streak}d berturut" if streak > 1 else ""
+
+            label_icon = "🟢" if label == "STRONG BUY" else ("🔵" if label == "BUY" else "⚪")
 
             lines.append(
-                f"{i}. {whale_icon} <b>{code}</b>  [{label}]  CFS:{fmt_score(cfs_val)}"
+                f"{i}. {whale_icon} <b>{code}</b>  "
+                f"{label_icon} {label}{sad_tag}"
             )
             lines.append(
-                f"   WAS:{fmt_score(was['was'])} | "
-                f"FS:{fmt_score(fs['fs'])} | "
-                f"TCN:{fmt_score(tcn['tcn'])} | "
-                f"SAD:{sad_icon}"
+                f"   Broker akumulasi: {_brokers(top3)}"
             )
             lines.append(
-                f"   Bkr:{brokers} | "
-                f"Vol:{vol_ratio:.1f}x | "
-                f"Net:{format_rupiah(net)} | "
-                f"Streak:{streak}d"
+                f"   Net beli: {format_rupiah(net)}{streak_str}  |  "
+                f"Teknikal: {score_tcn}/{mx}  |  Harga: Rp{close:,.0f}"
             )
-
-            if sad["sad"] and streak >= 5:
-                lines.append(f"   ⭐ Stealth {streak}d — kandidat breakout")
-
             lines.append("")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
-    lines.append("📌 Bukan rekomendasi beli/jual. DYOR.")
+    lines.append("📌 <i>Bukan rekomendasi beli/jual. DYOR.</i>")
     return "\n".join(lines)
 
 
@@ -276,8 +269,8 @@ def build_report_data(
 
     valid = [s for s in all_scores if s.get("ohlcv")]
 
-    was_ranking = sorted(valid, key=lambda x: x["was"]["was"], reverse=True)
-    fs_ranking  = sorted(valid, key=lambda x: x["fs"]["fs"],  reverse=True)
+    was_ranking = sorted(valid, key=lambda x: x["was"]["net_buy_total_rupiah"], reverse=True)
+    fs_ranking  = sorted(valid, key=lambda x: x["fs"]["net_buy_today"], reverse=True)
     tcn_ranking = sorted(valid, key=lambda x: x["tcn"]["tcn"], reverse=True)
 
     sad_ranking = sorted(
