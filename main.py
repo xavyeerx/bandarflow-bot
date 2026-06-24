@@ -107,13 +107,7 @@ def run_scrape_and_score() -> None:
     if is_token_expired():
         asyncio.run(send_error_notification(
             "⚠️ <b>Token Stockbit EXPIRED!</b>\n"
-            "Data broker hari ini tidak berhasil diambil.\n\n"
-            "Cara update token:\n"
-            "1. Buka stockbit.com → Login\n"
-            "2. F12 → Network → klik request ke exodus.stockbit.com\n"
-            "3. Headers → copy nilai <code>Authorization: Bearer eyJ...</code>\n"
-            "4. Di VM: <code>nano /home/anugrahdwikiar/bandarflow-bot/.env</code>\n"
-            "5. Ganti nilai STOCKBIT_TOKEN dengan token baru"
+            "Data broker hari ini tidak berhasil diambil."
         ))
 
     # ── Simpan ke SQLite ──
