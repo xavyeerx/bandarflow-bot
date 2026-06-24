@@ -80,7 +80,6 @@ def format_top5_was(was_ranking: List[Dict]) -> str:
 
         lines.append(f"{i}. <b>{code}</b>  {format_rupiah(net)}{streak_str}")
         lines.append(f"   Broker: {_brokers(top3)}")
-        lines.append("")
 
     if not was_ranking:
         lines.append("<i>(tidak ada sinyal whale hari ini)</i>")
@@ -107,7 +106,6 @@ def format_top5_fs(fs_ranking: List[Dict]) -> str:
         lines.append(f"{i}. <b>{code}</b>  {format_rupiah(net)}  ({anom:+.1f}x){fgn}")
         if top3:
             lines.append(f"   Broker: {_brokers(top3)}")
-        lines.append("")
 
     if not fs_ranking:
         lines.append("<i>(tidak ada sinyal flow hari ini)</i>")
@@ -135,7 +133,6 @@ def format_top5_tcn(tcn_ranking: List[Dict]) -> str:
 
         lines.append(f"{i}. <b>{code}</b>  {score}/{mx} sinyal  Rp{close:,.0f}")
         lines.append(f"   {sig_str}")
-        lines.append("")
 
     if not tcn_ranking:
         lines.append("<i>(tidak ada sinyal teknikal hari ini)</i>")
@@ -167,7 +164,6 @@ def format_top5_sad(sad_ranking: List[Dict]) -> str:
         lines.append(f"   Broker: {_brokers(top3)}  |  Range harga: {p_range:.1f}%")
         if streak > 1:
             lines.append(f"   ⭐ Streak {streak} hari — kandidat breakout")
-        lines.append("")
 
     if not sad_ranking:
         lines.append("<i>(tidak ada sinyal stealth accumulation hari ini)</i>")
@@ -248,7 +244,6 @@ def format_watchlist_cfs(cfs_ranking: List[Dict]) -> str:
                 f"   Net beli: {format_rupiah(net)}{streak_str}  |  "
                 f"Teknikal: {score_tcn}/{mx}  |  Harga: Rp{close:,.0f}"
             )
-            lines.append("")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
     lines.append("📌 <i>Bukan rekomendasi beli/jual. DYOR.</i>")
