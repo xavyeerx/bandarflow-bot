@@ -240,6 +240,7 @@ class StockbitScraper:
     def __init__(self):
         self._token: Optional[str] = None
         self._ready = False
+        self.token_expired = False
 
     def _ensure_ready(self) -> bool:
         if self._ready:
@@ -293,6 +294,7 @@ class StockbitScraper:
                         "  buka stockbit.com → F12 → Network → copy Authorization header"
                     )
                     self._ready = False
+                    self.token_expired = True
                     return [], {}
 
                 if resp.status_code == 429:
@@ -408,3 +410,8 @@ def scrape_all_broksum(
 def get_broker_summary(code: str, trade_date: str = None) -> Tuple[List[Dict], Dict]:
     """Public wrapper untuk satu saham. Return: (broker_list, bandar_info)."""
     return _get_scraper().get_broker_summary(code, trade_date)
+
+
+def is_token_expired() -> bool:
+    """Cek apakah Stockbit token expired (401) saat scraping terakhir."""
+    return _get_scraper().token_expired

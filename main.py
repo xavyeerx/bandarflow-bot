@@ -32,7 +32,7 @@ from data.db import init_db, save_daily_broksum, save_daily_summary, save_bandar
 from data.db import get_broksum_ndays, get_net_buy_history, get_close_history, get_volume_history
 from scraper.universe import get_stock_universe
 from scraper.idx_scraper import scrape_all_stocks, get_foreign_flow_all, get_market_summary
-from scraper.stockbit_scraper import scrape_all_broksum
+from scraper.stockbit_scraper import scrape_all_broksum, is_token_expired
 from engine.indicators import get_all_indicators, prefetch_all_indicators
 from engine.market_regime import detect_regime
 from engine.scoring import score_one_stock
@@ -103,6 +103,18 @@ def run_scrape_and_score() -> None:
     all_broksum, all_bandar = scrape_all_broksum(codes, today_str)
     emiten_scraped = len(all_broksum)
     logger.info("Stockbit scrape: %d/%d berhasil", emiten_scraped, universe_size)
+
+    if is_token_expired():
+        asyncio.run(send_error_notification(
+            "⚠️ <b>Token Stockbit EXPIRED!</b>\n"
+            "Data broker hari ini tidak berhasil diambil.\n\n"
+            "Cara update token:\n"
+            "1. Buka stockbit.com → Login\n"
+            "2. F12 → Network → klik request ke exodus.stockbit.com\n"
+            "3. Headers → copy nilai <code>Authorization: Bearer eyJ...</code>\n"
+            "4. Di VM: <code>nano /home/anugrahdwikiar/bandarflow-bot/.env</code>\n"
+            "5. Ganti nilai STOCKBIT_TOKEN dengan token baru"
+        ))
 
     # ── Simpan ke SQLite ──
     logger.info("Menyimpan data ke SQLite...")
