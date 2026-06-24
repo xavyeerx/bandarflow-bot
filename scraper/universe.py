@@ -160,5 +160,7 @@ def get_stock_universe() -> List[str]:
     Return daftar semua kode saham BEI tanpa suffix .JK.
     IDX API sudah 403 — langsung pakai hardcoded list lengkap.
     """
-    logger.info("Total universe: %d emiten (hardcoded IDX list)", len(_FULL_UNIVERSE))
-    return list(_FULL_UNIVERSE)
+    codes = [c.replace(".JK", "").strip().upper() for c in _FULL_UNIVERSE]
+    codes = list(dict.fromkeys(codes))  # dedup preserve order
+    logger.info("Total universe: %d emiten (hardcoded IDX list)", len(codes))
+    return codes
