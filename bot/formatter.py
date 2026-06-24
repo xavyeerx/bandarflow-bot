@@ -33,6 +33,12 @@ def fmt_pct(v: float) -> str:
 def _brokers(top3: list) -> str:
     return "  ".join(f"<b>{b}</b>" for b in top3[:3])
 
+def _price_str(ohlcv: dict) -> str:
+    close  = (ohlcv or {}).get("close", 0)
+    chg    = (ohlcv or {}).get("change_pct", 0)
+    sign   = "+" if chg >= 0 else ""
+    return f"Rp{close:,.0f} ({sign}{chg:.1f}%)"
+
 
 # ─── Pesan 1: Header ──────────────────────────────────────────────────────────
 
@@ -77,8 +83,9 @@ def format_top5_was(was_ranking: List[Dict]) -> str:
         streak = was["persistent_days"]
         top3   = was["top3_brokers"][:3]
         streak_str = f"  {streak}d berturut" if streak > 1 else ""
+        price  = _price_str(item.get("ohlcv"))
 
-        lines.append(f"{i}. <b>{code}</b>  {format_rupiah(net)}{streak_str}")
+        lines.append(f"{i}. <b>{code}</b>  {price}  {format_rupiah(net)}{streak_str}")
         lines.append(f"   Broker: {_brokers(top3)}")
 
     if not was_ranking:
@@ -95,15 +102,16 @@ def format_top5_fs(fs_ranking: List[Dict]) -> str:
         "",
     ]
     for i, item in enumerate(fs_ranking[:config.TOP_N], 1):
-        code = item["code"]
-        fs   = item["fs"]
-        net  = fs["net_buy_today"]
-        anom = fs["anomali"]
-        fgn  = "  🌏 Asing masuk" if fs["foreign_booster_active"] else ""
-        was  = item.get("was", {})
-        top3 = was.get("top3_brokers", [])[:3]
+        code  = item["code"]
+        fs    = item["fs"]
+        net   = fs["net_buy_today"]
+        anom  = fs["anomali"]
+        fgn   = "  🌏 Asing masuk" if fs["foreign_booster_active"] else ""
+        was   = item.get("was", {})
+        top3  = was.get("top3_brokers", [])[:3]
+        price = _price_str(item.get("ohlcv"))
 
-        lines.append(f"{i}. <b>{code}</b>  {format_rupiah(net)}  ({anom:+.1f}x){fgn}")
+        lines.append(f"{i}. <b>{code}</b>  {price}  {format_rupiah(net)}  ({anom:+.1f}x){fgn}")
         if top3:
             lines.append(f"   Broker: {_brokers(top3)}")
 
@@ -126,12 +134,12 @@ def format_top5_tcn(tcn_ranking: List[Dict]) -> str:
         score = tcn["score"]
         mx    = tcn["max_score"]
         sigs  = tcn["signals"]
-        close = (item.get("ohlcv") or {}).get("close", 0)
 
         active = [k for k, v in sigs.items() if v][:5]
         sig_str = "  ".join(f"✅{s}" for s in active)
+        price   = _price_str(item.get("ohlcv"))
 
-        lines.append(f"{i}. <b>{code}</b>  {score}/{mx} sinyal  Rp{close:,.0f}")
+        lines.append(f"{i}. <b>{code}</b>  {price}  {score}/{mx} sinyal")
         lines.append(f"   {sig_str}")
 
     if not tcn_ranking:
@@ -157,8 +165,9 @@ def format_top5_sad(sad_ranking: List[Dict]) -> str:
         p_range = sad["price_range"] * 100
         p_days  = sad["positive_days"]
 
+        price = _price_str(item.get("ohlcv"))
         lines.append(
-            f"{i}. <b>{code}</b>  {format_rupiah(cum_net)} / 5 hari"
+            f"{i}. <b>{code}</b>  {price}  {format_rupiah(cum_net)} / 5 hari"
             f"  ({p_days}/5 hari net buy positif)"
         )
         lines.append(f"   Broker: {_brokers(top3)}  |  Range harga: {p_range:.1f}%")
@@ -219,7 +228,6 @@ def format_watchlist_cfs(cfs_ranking: List[Dict]) -> str:
             fs     = item["fs"]
             tcn    = item["tcn"]
             sad    = item["sad"]
-            close  = (item.get("ohlcv") or {}).get("close", 0)
 
             label      = cfs["label"]
             whale_icon = "🐳" if was["is_whale"] else "📈"
@@ -232,17 +240,17 @@ def format_watchlist_cfs(cfs_ranking: List[Dict]) -> str:
             streak_str = f"  {streak}d berturut" if streak > 1 else ""
 
             label_icon = "🟢" if label == "STRONG BUY" else ("🔵" if label == "BUY" else "⚪")
+            price      = _price_str(item.get("ohlcv"))
 
             lines.append(
-                f"{i}. {whale_icon} <b>{code}</b>  "
+                f"{i}. {whale_icon} <b>{code}</b>  {price}  "
                 f"{label_icon} {label}{sad_tag}"
             )
             lines.append(
                 f"   Broker akumulasi: {_brokers(top3)}"
             )
             lines.append(
-                f"   Net beli: {format_rupiah(net)}{streak_str}  |  "
-                f"Teknikal: {score_tcn}/{mx}  |  Harga: Rp{close:,.0f}"
+                f"   Net beli: {format_rupiah(net)}{streak_str}  |  Teknikal: {score_tcn}/{mx}"
             )
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -264,8 +272,12 @@ def build_report_data(
 
     valid = [s for s in all_scores if s.get("ohlcv")]
 
-    was_ranking = sorted(valid, key=lambda x: x["was"]["net_buy_total_rupiah"], reverse=True)
-    fs_ranking  = sorted(valid, key=lambda x: x["fs"]["net_buy_today"], reverse=True)
+    was_ranking = sorted(valid, key=lambda x: x["was"]["was"], reverse=True)
+    fs_ranking  = sorted(
+        [s for s in valid if s["fs"]["net_buy_today"] > 0],
+        key=lambda x: x["fs"]["net_buy_today"],
+        reverse=True,
+    )
     tcn_ranking = sorted(valid, key=lambda x: x["tcn"]["tcn"], reverse=True)
 
     sad_ranking = sorted(

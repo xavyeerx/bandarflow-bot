@@ -381,7 +381,6 @@ def calc_cfs(
     wtf_risk: str,
     volume_rupiah: float,
     close: float,
-    net_buy_today: float,
 ) -> Dict:
     """
     Gabungkan semua score menjadi CFS dengan pre-filter.
@@ -404,8 +403,6 @@ def calc_cfs(
         reason = f"Volume terlalu kecil ({volume_rupiah/1e9:.2f}B)"
     elif close <= config.CFS_MIN_PRICE:
         reason = f"Harga terlalu rendah (Rp {close:,.0f})"
-    elif net_buy_today <= 0:
-        reason = "Net buy negatif"
 
     if reason:
         return {
@@ -481,7 +478,6 @@ def score_one_stock(
         wtf_risk=wtf_result["wtf_risk"],
         volume_rupiah=volume_rupiah,
         close=close,
-        net_buy_today=net_buy_today,
     )
 
     return {
