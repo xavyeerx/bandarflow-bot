@@ -1,0 +1,41 @@
+# Environment & secrets — JANGAN PERNAH di-commit
+.env
+*.env
+.env.*
+!.env.example
+
+# Database lokal
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Log files
+*.log
+test_full.log
+bandarmology.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Report cache
+data/report_cache.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
