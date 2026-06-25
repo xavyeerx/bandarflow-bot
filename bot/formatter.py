@@ -54,7 +54,6 @@ def format_header(data: Dict) -> str:
     chg         = data.get("ihsg_change_pct", 0)
     status      = data.get("data_status", "FULL")
     whales      = data.get("whale_count", 0)
-    wash        = data.get("wash_count", 0)
     r_emoji     = regime_emoji(regime)
     chg_sign    = "+" if chg >= 0 else ""
     chg_color   = "📗" if chg >= 0 else "📕"
@@ -67,7 +66,6 @@ def format_header(data: Dict) -> str:
         f"🌡 Regime: <b>{regime}</b> {r_emoji}\n"
         f"{'─' * 28}\n"
         f"🐳 Whale aktif   : {whales} saham\n"
-        f"⚠️ Wash trade    : {wash} saham\n"
         f"📦 Data status   : {'✅ FULL' if status == 'FULL' else '⚠️ DEGRADED'}"
     )
 
@@ -183,36 +181,7 @@ def format_top5_sad(sad_ranking: List[Dict]) -> str:
     return "\n".join(lines).rstrip()
 
 
-# ─── Pesan 6: WTF Warning ─────────────────────────────────────────────────────
-
-def format_wtf_warning(wash_list: List[Dict]) -> str:
-    lines = [
-        "⚠️ <b>WASH TRADE WARNING</b>",
-        "<i>Saham berikut terdeteksi transaksi bolak-balik mencurigakan — HINDARI</i>",
-        "",
-    ]
-    if not wash_list:
-        lines.append("✅ <i>Tidak ada wash trade terdeteksi hari ini</i>")
-    else:
-        for i, item in enumerate(wash_list[:10], 1):
-            code     = item["code"]
-            wtf      = item["wtf"]
-            risk     = wtf["wtf_risk"]
-            wash_pct = int(wtf["wash_score"] * 100)
-            net      = item.get("fs", {}).get("net_buy_today", 0)
-            risk_icon = "🔴" if risk == "HIGH" else "🟡"
-
-            lines.append(
-                f"{i}. {risk_icon} <b>{code}</b>  "
-                f"Wash: {wash_pct}%  |  Net: {format_rupiah(net)}"
-            )
-        lines.append("")
-        lines.append("⚠️ <i>Flow tinggi + wash tinggi = potensi pump &amp; dump</i>")
-
-    return "\n".join(lines)
-
-
-# ─── Pesan 7: Watchlist CFS ───────────────────────────────────────────────────
+# ─── Pesan 6: Watchlist CFS ───────────────────────────────────────────────────
 
 def format_watchlist_cfs(cfs_ranking: List[Dict]) -> str:
     lines = [
@@ -290,12 +259,6 @@ def build_report_data(
         reverse=True,
     )
 
-    wash_list = sorted(
-        [s for s in valid if s["wtf"]["wtf_risk"] in ("HIGH", "MODERATE")],
-        key=lambda x: x["wtf"]["wash_score"],
-        reverse=True,
-    )
-
     cfs_ranking = sorted(
         [s for s in valid if s["cfs"]["lolos_prefilter"] and s["cfs"]["label"] != "SKIP"],
         key=lambda x: x["cfs"]["cfs"],
@@ -313,11 +276,9 @@ def build_report_data(
         "ihsg_change_pct":    market_summary.get("ihsg_change_pct", 0),
         "ihsg_volume_rupiah": market_summary.get("ihsg_volume_rupiah", 0),
         "whale_count":        whale_count,
-        "wash_count":         len([s for s in valid if s["wtf"]["wtf_risk"] == "HIGH"]),
         "was_ranking":        was_ranking,
         "fs_ranking":         fs_ranking,
         "tcn_ranking":        tcn_ranking,
         "sad_ranking":        sad_ranking,
-        "wash_list":          wash_list,
         "cfs_ranking":        cfs_ranking,
     }

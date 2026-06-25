@@ -307,7 +307,6 @@ def calc_sad(
         price_range < config.SAD_PRICE_RANGE_MAX
         and vol_ratio > config.SAD_VOL_RATIO_MIN
         and positive_days >= config.SAD_MIN_POSITIVE_DAYS
-        and cum_net_buy_5d > 0
     ) else 0
 
     return {

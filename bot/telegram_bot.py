@@ -20,7 +20,6 @@ from bot.formatter import (
     format_top5_fs,
     format_top5_tcn,
     format_top5_sad,
-    format_wtf_warning,
     format_watchlist_cfs,
 )
 
@@ -55,8 +54,7 @@ async def send_report(data: Dict, token: str = None, chat_id: str = None) -> boo
         ("Top5 FS",     format_top5_fs(data.get("fs_ranking", []))),
         ("Top5 TCN",    format_top5_tcn(data.get("tcn_ranking", []))),
         ("Top5 SAD",    format_top5_sad(data.get("sad_ranking", []))),
-        ("WTF Warning", format_wtf_warning(data.get("wash_list", []))),
-        ("Watchlist",   format_watchlist_cfs(data.get("cfs_ranking", []))),  # selalu terakhir
+        ("Watchlist",   format_watchlist_cfs(data.get("cfs_ranking", []))),
     ]
 
     for label, text in messages:

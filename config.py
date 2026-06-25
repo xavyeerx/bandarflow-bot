@@ -68,15 +68,10 @@ FS_FOREIGN_BOOSTER = 0.08
 TCN_VOLUME_SPIKE_RATIO = 1.5
 TCN_BODY_RATIO_MIN     = 0.6
 
-# SAD — threshold lebih realistis untuk kondisi bearish/sideways
-SAD_PRICE_RANGE_MAX   = 0.08   # 8% (dari 4%) — harga sideways tapi tidak kaku
-SAD_VOL_RATIO_MIN     = 0.8    # 80% avg volume (dari 1.2x) — bearish volume turun wajar
-SAD_MIN_POSITIVE_DAYS = 3      # 3 dari 5 hari (dari 4) — lebih realistis
-
-# WTF
-WTF_BROKER_RATIO_THRESHOLD = 0.30
-WTF_LOW_THRESHOLD          = 0.15
-WTF_HIGH_THRESHOLD         = 0.30
+# SAD
+SAD_PRICE_RANGE_MAX   = 0.10   # 10% — sideways longgar
+SAD_VOL_RATIO_MIN     = 0.6    # 60% avg volume — cukup ada aktivitas
+SAD_MIN_POSITIVE_DAYS = 2      # 2 dari 5 hari net buy positif
 
 # CFS pre-filter
 CFS_MIN_VOLUME_RUPIAH = 0.5e9   # 0.5 Miliar
