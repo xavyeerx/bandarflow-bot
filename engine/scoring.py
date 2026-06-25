@@ -319,55 +319,6 @@ def calc_sad(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Formula 5: WTF — Wash Trade Filter
-# ══════════════════════════════════════════════════════════════════════════════
-
-def calc_wtf(broksum_today: List[Dict]) -> Dict:
-    """
-    Deteksi transaksi mencurigakan (wash trade).
-
-    Args:
-        broksum_today: Broksum hari ini semua broker
-                       [{broker_code, buy_lot, sell_lot, ...}]
-
-    Return dict: wtf_risk ("LOW" | "MODERATE" | "HIGH"), wash_score
-    """
-    if not broksum_today:
-        return {"wtf_risk": "LOW", "wash_score": 0.0}
-
-    total_volume = sum(
-        float(b.get("buy_lot", 0) or 0) + float(b.get("sell_lot", 0) or 0)
-        for b in broksum_today
-    )
-
-    if total_volume == 0:
-        return {"wtf_risk": "LOW", "wash_score": 0.0}
-
-    wash_volume = 0.0
-    for broker in broksum_today:
-        buy  = float(broker.get("buy_lot", 0) or 0)
-        sell = float(broker.get("sell_lot", 0) or 0)
-        if buy > 0 and sell > 0:
-            smaller = min(buy, sell)
-            larger  = max(buy, sell)
-            if smaller / larger > config.WTF_BROKER_RATIO_THRESHOLD:
-                wash_volume += (smaller * 2)
-
-    wash_score = wash_volume / total_volume
-
-    if wash_score < config.WTF_LOW_THRESHOLD:
-        risk = "LOW"
-    elif wash_score < config.WTF_HIGH_THRESHOLD:
-        risk = "MODERATE"
-    else:
-        risk = "HIGH"
-
-    return {
-        "wtf_risk":   risk,
-        "wash_score": round(wash_score, 4),
-    }
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 # Formula Final: CFS — Composite Final Score
 # ══════════════════════════════════════════════════════════════════════════════
@@ -377,28 +328,16 @@ def calc_cfs(
     fs: float,
     tcn: float,
     sad: int,
-    wtf_risk: str,
     volume_rupiah: float,
     close: float,
 ) -> Dict:
     """
     Gabungkan semua score menjadi CFS dengan pre-filter.
-
-    Args:
-        was, fs, tcn: float 0-1
-        sad:          int 0 atau 1
-        wtf_risk:     "LOW" | "MODERATE" | "HIGH"
-        volume_rupiah: volume dalam rupiah hari ini
-        close:        harga penutupan
-        net_buy_today: net buy total hari ini
-
     Return dict: cfs, label, lolos_prefilter, reason_filtered
     """
     # Pre-filter
     reason = None
-    if wtf_risk == "HIGH":
-        reason = "Wash Trade HIGH"
-    elif volume_rupiah < config.CFS_MIN_VOLUME_RUPIAH:
+    if volume_rupiah < config.CFS_MIN_VOLUME_RUPIAH:
         reason = f"Volume terlalu kecil ({volume_rupiah/1e9:.2f}B)"
     elif close <= config.CFS_MIN_PRICE:
         reason = f"Harga terlalu rendah (Rp {close:,.0f})"
@@ -468,25 +407,22 @@ def score_one_stock(
     fs_result  = calc_fs(net_buy_today, net_buy_10d, foreign_net_buy)
     tcn_result = calc_tcn(indicators)
     sad_result = calc_sad(close_5d, volume_5d, avg_vol_20d, net_buy_5d)
-    wtf_result = calc_wtf(broksum_today)
     cfs_result = calc_cfs(
         was=was_result["was"],
         fs=fs_result["fs"],
         tcn=tcn_result["tcn"],
         sad=sad_result["sad"],
-        wtf_risk=wtf_result["wtf_risk"],
         volume_rupiah=volume_rupiah,
         close=close,
     )
 
     return {
-        "code":        code,
-        "ohlcv":       ohlcv_today,
-        "was":         was_result,
-        "fs":          fs_result,
-        "tcn":         tcn_result,
-        "sad":         sad_result,
-        "wtf":         wtf_result,
-        "cfs":         cfs_result,
+        "code":          code,
+        "ohlcv":         ohlcv_today,
+        "was":           was_result,
+        "fs":            fs_result,
+        "tcn":           tcn_result,
+        "sad":           sad_result,
+        "cfs":           cfs_result,
         "net_buy_today": net_buy_today,
     }
