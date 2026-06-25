@@ -267,51 +267,85 @@ def scrape_all_stocks(codes: List[str]) -> Dict[str, Dict]:
             logger.error("yfinance batch download gagal, fallback ke individual download")
             raise ValueError("Empty batch")
 
+        nan_codes = []  # kode yang close-nya NaN, perlu fast_info
+
         for code in codes:
             ticker_str = f"{code}{config.YFINANCE_SUFFIX}"
             try:
-                # Ambil data untuk ticker ini
                 if len(codes) == 1:
                     df = df_all
                 else:
                     df = df_all[ticker_str] if ticker_str in df_all.columns.get_level_values(0) else None
 
                 if df is None or (hasattr(df, 'empty') and df.empty):
+                    nan_codes.append(code)
                     continue
 
-                df = df.dropna(subset=["Close"], how="any")
-                if len(df) < 1:
+                # prev_close dari baris sebelum terakhir (tidak drop NaN dulu)
+                df_valid = df.dropna(subset=["Close"], how="any")
+                prev_c = float(df_valid.iloc[-1]["Close"]) if len(df_valid) >= 1 else 0.0
+
+                # Ambil volume hari ini (baris terakhir, bisa NaN close)
+                last_row = df.iloc[-1]
+                volume   = float(last_row["Volume"]) if not _isnan(last_row["Volume"]) else 0.0
+
+                # Cek apakah close hari ini tersedia
+                last_close = last_row["Close"]
+                if _isnan(last_close):
+                    # Tandai untuk di-patch via fast_info
+                    nan_codes.append(code)
+                    # Simpan sementara dengan prev_close sebagai placeholder
+                    results[code] = {
+                        "code": code, "open": prev_c, "high": prev_c,
+                        "low": prev_c, "close": prev_c, "volume": volume,
+                        "volume_rupiah": volume * prev_c, "change_pct": 0.0,
+                        "market_cap": None, "_prev_close": prev_c,
+                    }
                     continue
 
-                row  = df.iloc[-1]
-                prev = df.iloc[-2] if len(df) >= 2 else row
-
-                close  = float(row["Close"])
-                open_  = float(row["Open"]) if not _isnan(row["Open"]) else close
-                high   = float(row["High"]) if not _isnan(row["High"]) else close
-                low    = float(row["Low"]) if not _isnan(row["Low"]) else close
-                volume = float(row["Volume"]) if not _isnan(row["Volume"]) else 0.0
-                prev_c = float(prev["Close"])
+                close  = float(last_close)
+                open_  = float(last_row["Open"]) if not _isnan(last_row["Open"]) else close
+                high   = float(last_row["High"]) if not _isnan(last_row["High"]) else close
+                low    = float(last_row["Low"])  if not _isnan(last_row["Low"])  else close
 
                 change_pct    = ((close - prev_c) / prev_c * 100) if prev_c > 0 else 0.0
                 volume_rupiah = volume * close
 
                 results[code] = {
-                    "code":          code,
-                    "open":          open_,
-                    "high":          high,
-                    "low":           low,
-                    "close":         close,
-                    "volume":        volume,
+                    "code": code, "open": open_, "high": high, "low": low,
+                    "close": close, "volume": volume,
                     "volume_rupiah": volume_rupiah,
-                    "change_pct":    round(change_pct, 2),
-                    "market_cap":    None,
+                    "change_pct": round(change_pct, 2), "market_cap": None,
                 }
 
             except Exception as e:
                 logger.debug("Parse error %s dari batch: %s", code, e)
+                nan_codes.append(code)
 
-        logger.info("yfinance batch: %d/%d saham berhasil", len(results), total)
+        logger.info("yfinance batch: %d/%d saham berhasil, %d perlu fast_info",
+                    len(results) - len(nan_codes), total, len(nan_codes))
+
+        # Patch harga terkini via fast_info untuk yang Close NaN
+        if nan_codes:
+            logger.info("Mengambil harga terkini via fast_info untuk %d saham...", len(nan_codes))
+            for code in nan_codes:
+                try:
+                    fi = yf.Ticker(f"{code}{config.YFINANCE_SUFFIX}").fast_info
+                    close = float(fi.get("lastPrice") or fi.get("last_price") or 0)
+                    prev_c = float(fi.get("previousClose") or fi.get("previous_close") or 0)
+                    if close <= 0:
+                        continue
+                    existing = results.get(code, {})
+                    volume   = existing.get("volume", 0)
+                    change_pct = ((close - prev_c) / prev_c * 100) if prev_c > 0 else 0.0
+                    results[code] = {
+                        "code": code, "open": prev_c, "high": close,
+                        "low": prev_c, "close": close, "volume": volume,
+                        "volume_rupiah": volume * close,
+                        "change_pct": round(change_pct, 2), "market_cap": None,
+                    }
+                except Exception as e:
+                    logger.debug("fast_info error %s: %s", code, e)
 
     except Exception as e:
         logger.warning("Batch download gagal (%s), fallback ke individual...", e)
