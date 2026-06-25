@@ -35,9 +35,9 @@ logger = logging.getLogger(__name__)
 # ─── Import modules ───────────────────────────────────────────────────────────
 import config
 from data.db import init_db, save_daily_broksum, save_daily_summary, save_bandar_detector, purge_old_data
-from data.db import get_broksum_ndays, get_net_buy_history, get_close_history, get_volume_history
+from data.db import get_broksum_ndays, get_net_buy_history, get_close_history, get_volume_history, get_foreign_net_buy_today
 from scraper.universe import get_stock_universe
-from scraper.idx_scraper import scrape_all_stocks, get_foreign_flow_all, get_market_summary
+from scraper.idx_scraper import scrape_all_stocks, get_market_summary
 from scraper.stockbit_scraper import scrape_all_broksum, is_token_expired
 from engine.indicators import get_all_indicators, prefetch_all_indicators
 from engine.market_regime import detect_regime
@@ -100,9 +100,7 @@ def run_scrape_and_score() -> None:
     idx_data = scrape_all_stocks(codes)
     logger.info("IDX scrape: %d/%d berhasil", len(idx_data), universe_size)
 
-    # ── Scrape foreign flow (satu request untuk semua) ──
-    logger.info("Fetching foreign flow...")
-    all_foreign = get_foreign_flow_all()
+    # foreign flow dihitung dari broksum DB setelah data Stockbit tersimpan
 
     # ── Scrape Stockbit broker summary + bandar detector ──
     logger.info("Scraping Stockbit broker summary (%d saham)...", universe_size)
@@ -129,7 +127,7 @@ def run_scrape_and_score() -> None:
 
         ohlcv = idx_data.get(code)
         if ohlcv:
-            ohlcv["foreign_net_buy"] = all_foreign.get(code, 0.0)
+            ohlcv["foreign_net_buy"] = 0.0  # diisi dari DB setelah broksum tersimpan
             ohlcv["net_buy_total"] = sum(
                 float(b.get("net_value", 0) or 0) for b in broksum
             )
@@ -147,7 +145,7 @@ def run_scrape_and_score() -> None:
             broksum_today = all_broksum.get(code, [])
             broksum_5d    = get_broksum_ndays(code, days=5)
             net_buy_10d   = get_net_buy_history(code, days=10)
-            foreign_nb    = all_foreign.get(code, 0.0)
+            foreign_nb    = get_foreign_net_buy_today(code, today_db)
             close_5d      = get_close_history(code, days=5)
             volume_5d     = get_volume_history(code, days=5)
             volume_20d    = get_volume_history(code, days=20)

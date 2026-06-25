@@ -318,6 +318,23 @@ def get_net_buy_history(code: str, days: int = 10) -> List[float]:
     return [float(r["total_net"]) for r in rows]
 
 
+def get_foreign_net_buy_today(code: str, today: str) -> float:
+    """
+    Hitung net buy broker asing untuk satu saham hari ini dari broksum DB.
+    broker_type = 'Asing' → sum net_value.
+    """
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT SUM(net_value) AS total
+            FROM broksum
+            WHERE code = ? AND date = ? AND broker_type = 'Asing'
+            """,
+            (code, today),
+        ).fetchone()
+    return float(row["total"]) if row and row["total"] is not None else 0.0
+
+
 def get_close_history(code: str, days: int = 5) -> List[Optional[float]]:
     """Ambil array close price N hari terakhir dari daily_summary."""
     cutoff = (datetime.now() - timedelta(days=days + 5)).strftime("%Y-%m-%d")

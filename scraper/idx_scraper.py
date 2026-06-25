@@ -238,10 +238,16 @@ def get_foreign_net_buy(code: str, all_foreign_flow: Dict[str, float] = None) ->
 
 # ─── Batch scraper ────────────────────────────────────────────────────────────
 
-def _parse_batch(df_all, codes, period_label) -> tuple:
-    """Parse hasil yf.download batch. Return (results_dict, nan_codes_list)."""
+def _parse_batch(df_all, codes, period_label, prev_close_cache=None) -> tuple:
+    """
+    Parse hasil yf.download batch.
+    Return (results_dict, nan_codes_list, prev_close_cache_dict).
+    prev_close_cache: dict {code: prev_c} untuk dipakai di pass berikutnya.
+    """
     results = {}
     nan_codes = []
+    prev_cache = prev_close_cache or {}
+
     for code in codes:
         ticker_str = f"{code}{config.YFINANCE_SUFFIX}"
         try:
@@ -259,8 +265,16 @@ def _parse_batch(df_all, codes, period_label) -> tuple:
                 nan_codes.append(code)
                 continue
 
+            # Cek apakah baris terakhir (hari ini) close-nya NaN
+            last_row = df.iloc[-1]
+            if _isnan(last_row["Close"]):
+                # Simpan prev_close (kemarin) untuk dipakai di batch 1m
+                prev_cache[code] = float(df_valid.iloc[-1]["Close"])
+                nan_codes.append(code)
+                continue
+
             row    = df_valid.iloc[-1]
-            prev_c = float(df_valid.iloc[-2]["Close"]) if len(df_valid) >= 2 else float(row["Close"])
+            prev_c = prev_cache.get(code) or (float(df_valid.iloc[-2]["Close"]) if len(df_valid) >= 2 else float(row["Close"]))
             close  = float(row["Close"])
             volume = float(row["Volume"]) if not _isnan(row["Volume"]) else 0.0
             open_  = float(row["Open"])   if not _isnan(row["Open"])   else close
@@ -277,7 +291,7 @@ def _parse_batch(df_all, codes, period_label) -> tuple:
         except Exception as e:
             logger.debug("Parse error %s (%s): %s", code, period_label, e)
             nan_codes.append(code)
-    return results, nan_codes
+    return results, nan_codes, prev_cache
 
 
 def scrape_all_stocks(codes: List[str]) -> Dict[str, Dict]:
@@ -295,27 +309,30 @@ def scrape_all_stocks(codes: List[str]) -> Dict[str, Dict]:
     tickers_str = " ".join(f"{c}{config.YFINANCE_SUFFIX}" for c in codes)
 
     # ── Download 1: period=5d (dapat prev_close akurat) ──
+    prev_cache: Dict[str, float] = {}
     logger.info("yfinance batch download untuk %d saham...", total)
     try:
         df_5d = yf.download(tickers_str, period="5d", interval="1d",
                             auto_adjust=True, progress=False, group_by="ticker")
         if df_5d is not None and not df_5d.empty:
-            results, nan_codes = _parse_batch(df_5d, codes, "5d")
+            results, nan_codes, prev_cache = _parse_batch(df_5d, codes, "5d")
         else:
             nan_codes = list(codes)
     except Exception as e:
         logger.warning("Batch 5d gagal: %s", e)
         nan_codes = list(codes)
 
-    # ── Download 2: period=1d untuk yang masih NaN ──
+    logger.info("yfinance batch: %d/%d berhasil dari 5d, %d perlu data intraday",
+                len(results), total, len(nan_codes))
+
+    # ── Download 2: period=1d/1m intraday untuk yang close-nya NaN ──
     if nan_codes:
-        logger.info("Batch 1d untuk %d saham yang belum dapat close...", len(nan_codes))
+        logger.info("Batch intraday (1m) untuk %d saham...", len(nan_codes))
         try:
             nan_str = " ".join(f"{c}{config.YFINANCE_SUFFIX}" for c in nan_codes)
             df_1d = yf.download(nan_str, period="1d", interval="1m",
                                 auto_adjust=True, progress=False, group_by="ticker")
             if df_1d is not None and not df_1d.empty:
-                # Ambil close terakhir dari data intraday
                 still_nan = []
                 for code in nan_codes:
                     ticker_str = f"{code}{config.YFINANCE_SUFFIX}"
@@ -333,9 +350,9 @@ def scrape_all_stocks(codes: List[str]) -> Dict[str, Dict]:
                             continue
                         close  = float(df_v["Close"].iloc[-1])
                         volume = float(df_v["Volume"].sum()) if "Volume" in df_v else 0.0
-                        # prev_close dari hasil 5d jika ada
-                        prev_c = results.get(code, {}).get("close", close)
-                        change_pct = ((close - prev_c) / prev_c * 100) if prev_c > 0 and prev_c != close else 0.0
+                        # Pakai prev_close yang sudah disimpan dari batch 5d
+                        prev_c = prev_cache.get(code, close)
+                        change_pct = ((close - prev_c) / prev_c * 100) if prev_c > 0 else 0.0
                         results[code] = {
                             "code": code, "open": close, "high": close,
                             "low": close, "close": close, "volume": volume,
@@ -343,11 +360,11 @@ def scrape_all_stocks(codes: List[str]) -> Dict[str, Dict]:
                             "change_pct": round(change_pct, 2), "market_cap": None,
                         }
                     except Exception as e:
-                        logger.debug("Parse 1d error %s: %s", code, e)
+                        logger.debug("Parse 1m error %s: %s", code, e)
                         still_nan.append(code)
                 nan_codes = still_nan
         except Exception as e:
-            logger.warning("Batch 1d gagal: %s", e)
+            logger.warning("Batch 1m gagal: %s", e)
 
         # ── Fallback terakhir: fast_info hanya untuk yang benar-benar gagal ──
         if nan_codes:

@@ -14,16 +14,16 @@ logger = logging.getLogger(__name__)
 # 257 saham terliquid IDX, diurutkan dari terliquid ke non-liquid
 # Sumber: docs/LIQUIDITY_RANKING.md (avg nilai transaksi harian 20 hari terakhir)
 _FULL_UNIVERSE = [
-    "TPIA", "BBCA", "BBRI", "BMRI", "DSSA", "AMMN", "BUMI", "TLKM", "ANTM", "BRPT",
-    "ASII", "CUAN", "BREN", "BBNI", "PTRO", "BRMS", "DEWA", "AMRT", "MDKA", "EMAS",
-    "TINS", "BUVA", "UNTR", "AADI", "BIPI", "RAJA", "INCO", "ADRO", "MAPI", "BNBR",
+    "TPIA", "DSSA", "AMMN", "BUMI", "TLKM", "ANTM", "BRPT",
+    "ASII", "CUAN", "BREN", "PTRO", "BRMS", "DEWA", "AMRT", "MDKA", "EMAS",
+    "TINS", "BUVA", "AADI", "BIPI", "RAJA", "INCO", "ADRO", "MAPI", "BNBR",
     "BULL", "MBMA", "ENRG", "MEDC", "INDF", "KLBF", "ITMG", "NCKL", "ESSA", "WIFI",
     "PGAS", "MINA", "INKP", "CDIA", "ADMR", "CPIN", "PTBA", "PSAB", "ARCI", "JPFA",
-    "ASPR", "INDY", "SUPA", "PACK", "ISAT", "IMPC", "TKIM", "TCPI", "TOWR", "ICBP",
+    "ASPR", "INDY", "SUPA", "PACK", "ISAT", "IMPC", "TKIM", "TOWR",
     "MSIN", "UNVR", "RATU", "RMKE", "PANI", "BUKA", "AKRA", "BRIS", "SMGR", "EMTK",
     "INET", "VKTR", "TAPG", "PWON", "SSIA", "KETR", "HRTA", "JSMR", "MIKA", "WBSA",
     "UVCR", "KOTA", "EXCL", "GULA", "JGLE", "BBTN", "GOTO", "AALI", "ARKO", "GGRM",
-    "DMAS", "MARK", "PADI", "IRSX", "ESIP", "PGEO", "NZIA", "BDMN", "CYBR", "LSIP",
+    "MARK", "PADI", "IRSX", "ESIP", "PGEO", "NZIA", "BDMN", "CYBR", "LSIP",
     "ELSA", "BKSL", "CMNT", "OASA", "HMSP", "BSDE", "CTRA", "MTEL", "BFIN", "SIDO",
     "MYOR", "SSMS", "CMRY", "TRUE", "MAPA", "MPMX", "AYAM", "PNLF", "CBDK", "APIC",
     "DSNG", "CBRE", "PPRE", "HEAL", "GPSO", "SINI", "DEFI", "BAIK", "ACES", "SCMA",
