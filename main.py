@@ -11,8 +11,14 @@ import asyncio
 import json
 import logging
 import sys
+import warnings
 from datetime import date
 from pathlib import Path
+
+# Suppress noisy deprecation warnings dari yfinance/pandas
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", message=".*Timestamp.utcnow.*")
+warnings.filterwarnings("ignore", message=".*Pandas4Warning.*")
 
 # ─── Setup Logging ────────────────────────────────────────────────────────────
 logging.basicConfig(
