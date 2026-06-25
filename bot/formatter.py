@@ -255,7 +255,7 @@ def build_report_data(
 
     sad_ranking = sorted(
         [s for s in valid if s["sad"]["sad"] == 1],
-        key=lambda x: (x["was"]["persistent_days"], x["sad"]["cum_net_buy_5d"]),
+        key=lambda x: x["sad"]["cum_net_buy_5d"],
         reverse=True,
     )
 

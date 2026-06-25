@@ -71,7 +71,7 @@ TCN_BODY_RATIO_MIN     = 0.6
 # SAD
 SAD_PRICE_RANGE_MAX   = 0.10   # 10% — sideways longgar
 SAD_VOL_RATIO_MIN     = 0.6    # 60% avg volume — cukup ada aktivitas
-SAD_MIN_POSITIVE_DAYS = 2      # 2 dari 5 hari net buy positif
+SAD_MIN_POSITIVE_DAYS = 3      # 3 dari 5 hari net buy positif (streak minimum)
 
 # CFS pre-filter
 CFS_MIN_VOLUME_RUPIAH = 0.5e9   # 0.5 Miliar
