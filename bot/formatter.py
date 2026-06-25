@@ -34,10 +34,14 @@ def _brokers(top3: list) -> str:
     return "  ".join(f"<b>{b}</b>" for b in top3[:3])
 
 def _price_str(ohlcv: dict) -> str:
-    close  = (ohlcv or {}).get("close", 0)
-    chg    = (ohlcv or {}).get("change_pct", 0)
-    sign   = "+" if chg >= 0 else ""
-    return f"Rp{close:,.0f} ({sign}{chg:.1f}%)"
+    import math
+    close = (ohlcv or {}).get("close") or 0
+    chg   = (ohlcv or {}).get("change_pct") or 0
+    if not close or math.isnan(float(close)):
+        return ""
+    chg = float(chg) if not math.isnan(float(chg)) else 0.0
+    sign = "+" if chg >= 0 else ""
+    return f"Rp{float(close):,.0f} ({sign}{chg:.1f}%)"
 
 
 # ─── Pesan 1: Header ──────────────────────────────────────────────────────────

@@ -17,6 +17,13 @@ import config
 
 logger = logging.getLogger(__name__)
 
+def _isnan(v) -> bool:
+    try:
+        import math
+        return math.isnan(float(v))
+    except (TypeError, ValueError):
+        return True
+
 try:
     import yfinance as yf
     YFINANCE_OK = True
@@ -272,7 +279,7 @@ def scrape_all_stocks(codes: List[str]) -> Dict[str, Dict]:
                 if df is None or (hasattr(df, 'empty') and df.empty):
                     continue
 
-                df = df.dropna(how="all")
+                df = df.dropna(subset=["Close"], how="any")
                 if len(df) < 1:
                     continue
 
@@ -280,10 +287,10 @@ def scrape_all_stocks(codes: List[str]) -> Dict[str, Dict]:
                 prev = df.iloc[-2] if len(df) >= 2 else row
 
                 close  = float(row["Close"])
-                open_  = float(row["Open"])
-                high   = float(row["High"])
-                low    = float(row["Low"])
-                volume = float(row["Volume"])
+                open_  = float(row["Open"]) if not _isnan(row["Open"]) else close
+                high   = float(row["High"]) if not _isnan(row["High"]) else close
+                low    = float(row["Low"]) if not _isnan(row["Low"]) else close
+                volume = float(row["Volume"]) if not _isnan(row["Volume"]) else 0.0
                 prev_c = float(prev["Close"])
 
                 change_pct    = ((close - prev_c) / prev_c * 100) if prev_c > 0 else 0.0
